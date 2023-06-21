@@ -2,3 +2,6 @@ function calculateArea(length,width) {
 var area = length * width;
 return `the area of a rectangle is $(area)`;
 }
+
+calculateArea(5,7);
+
