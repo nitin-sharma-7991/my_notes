@@ -1,0 +1,7 @@
+function FindMaxInArray(arr) {
+var myArr = arr.sort();
+var lastIndex = arr.length-1;
+return `Maximum number of an array is $(myArr[lastIndex])`;
+}
+
+FindMaxInArray([5, 1, 2, 4]);
