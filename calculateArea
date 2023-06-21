@@ -1,3 +1,4 @@
 function calculateArea(length,width) { 
-return length*width;
+var area = length * width;
+return `the area of a rectangle is $(area)`;
 }
