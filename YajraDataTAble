@@ -1,0 +1,235 @@
+//---------------------------------DataTable script-----------------------------------------------------
+
+<script>
+   $(function() {
+    $('#task-table').DataTable({
+        processing: true,
+        stateSave: true, 
+        "language": {
+            processing: '<i class="fa fa-spinner fa-spin text-center fa-3x fa-fw"></i><span class="sr-only">Loading...</span> '
+        },
+        buttons: [{
+                extend: 'copy',
+                text: '<i title="copy" class="fa fa-files-o"></i>',
+                className: 'btn btn-sm btn-fill btn-info ',
+                title: 'Manage Tasks List',
+                exportOptions: {
+                    columns: [2, 3, 4, 5, 6, 7, 8]
+                }
+            },
+            {
+                extend: 'excel',
+                text: '<i title="excel" class="fa fa-file-excel-o"></i>',
+                className: 'btn btn-sm btn-fill btn-info ',
+                title: 'Tasks with me',
+                exportOptions: {
+                    columns: [2, 3, 4, 5, 6, 7, 8]
+                }
+            },
+            {
+                extend: 'pdf',
+                text: '<i title="pdf" class="fa fa-file-pdf-o"></i>',
+                className: 'btn btn-sm btn-fill btn-info ',
+                title: 'Tasks with me',
+                orientation: 'landscape',
+                exportOptions: {
+                    columns: [2, 3, 4, 5, 6, 7, 8]
+                },
+                customize: function(doc) {
+                    pdfMake.fonts = {
+                        arial: {
+                            normal: 'arial.ttf',
+                            bold: 'arial.ttf',
+                            italics: 'arial.ttf',
+                            bolditalics: 'arial.ttf'
+                        }
+                    };
+                    doc.defaultStyle.font = 'arial';
+                    doc.styles.tableHeader.alignment = 'left';
+                    doc.content[1].table.widths = Array(doc.content[1].table.body[0].length + 1)
+                        .join('*').split('');
+                }
+            },
+            {
+                extend: 'print',
+                title: 'Tasks with me',
+                className: 'btn btn-sm btn-fill btn-info ',
+                text: '<i title="print" class="fa fa-print"></i>',
+                exportOptions: {
+                    columns: [2, 3, 4, 5, 6, 7, 8]
+                }
+            }
+        ],
+        serverSide: true,
+        ajax:{
+           url:"{{ route('tasks.index',['tasks' => request()->tasks]) }}",
+           data:function(d){                
+              d.buisness_entity = $('#buisness_entity').val();
+              d.task_priority = $('#task_priority').val();
+              d.status = $('#status').val();
+              d.start_date = $('#start_date').val();
+              d.close_date = $('#close_date').val();
+           }
+       } ,
+        columns: [{
+                data: 'DT_RowIndex',
+                name: 'DT_RowIndex'
+            },
+            {
+                data: 'issue_id',
+                name: 'issue_id'
+            },
+            {
+                data: 'created_at',
+                name: 'created_at'
+            },
+            {
+                data: 'description',
+                name: 'description'
+            },
+            {
+                data: 'entity',
+                name: 'entity'
+            },
+            {
+                data: 'task_priority',
+                name: 'task_priority'
+            },
+            {
+                data: 'status',
+                name: 'status'
+            },
+            {
+                data: 'close_date',
+                name: 'close_date'
+            },
+            {
+                data: 'action',
+                name: 'action'
+            },
+        ],
+        stateSaveCallback: function(settings, data) {
+            // Save filter selections to the state
+            data.buisness_entity = $('#buisness_entity').val();
+            data.task_priority = $('#task_priority').val();
+            data.status = $('#status').val();
+            data.start_date = $('#start_date').val();
+            data.close_date = $('#close_date').val();
+            localStorage.setItem('DataTables_task-table', JSON.stringify(data));
+        },
+        stateLoadCallback: function(settings) {
+            // Load filter selections from the state
+            var stateData = JSON.parse(localStorage.getItem('DataTables_task-table'));
+            if (stateData) {
+                $('#buisness_entity').val(stateData.buisness_entity);
+                $('#task_priority').val(stateData.task_priority);
+                $('#status').val(stateData.status);
+                $('#start_date').val(stateData.start_date);
+                $('#close_date').val(stateData.close_date);
+            }
+            return stateData;
+        }
+    });
+
+     // Event listener for filter form fields onchange event
+     $('#filterform select').change(function() {
+        $('#task-table').DataTable().draw();
+     });
+
+     // Event listener for reset button click event
+     $('#resetfilter').click(function() {
+          $('#filterform')[0].reset();
+          $('#task-table').DataTable().draw();
+     });
+    });
+
+
+
+
+</script>
+
+//
+
+
+//-----------------------------controller logic ------------------------------------------------------------------------------
+
+
+ public function index(Request $request)
+    {  
+        $data["title"] = transOrEnsure('task_list');
+        $data["getCountry"] = $this->get_country_list();
+        $data["getStatus"] = Status::orderBy('name')->get();
+        $data["getTaskPriorities"] = TaskPriority::orderBy('name')->get();
+        $data["getBusinessEntities"] = BusinessEntity::orderBy('name')->get();
+
+        if ($request->ajax()) {
+
+            $tasks = Task::select('id', 'issue_id', 'subject', 'description', 'entity', 'task_priority', 'status', 'close_date', 'complete_date', 'country_id', 'category_id', 'customer_id', 'created_at');
+
+            if (!empty($request->task_priority)) {
+                $tasks = $tasks->where('task_priority', '=', $request->task_priority);
+            }
+            if (!empty($request->buisness_entity)) {
+                $tasks = $tasks->where('entity', '=', $request->buisness_entity);
+            }
+            if (!empty($request->status)) {
+                $tasks = $tasks->where('status', '=', $request->status);
+            }
+            if (!empty($request->start_date)) {
+                $tasks = $tasks->whereDate('start_date', '=', $request->start_date);
+            }
+            if (!empty($request->close_date)) {
+                $tasks = $tasks->whereDate('close_date', '=', $request->close_date);
+            }
+        
+            if (!empty($request->tasks) && $request->tasks == 'completed') {
+                
+                $completedStatusId = Status::where('name', 'completed')->value('id');
+                $tasks->where('status', $completedStatusId);
+               
+            } else {
+                $completedStatusId = Status::where('name', 'completed')->value('id');
+                $tasks->where('status','!=', $completedStatusId);
+            }
+
+            $tasks = $tasks->latest()->get();
+    
+            return Datatables::of($tasks)
+                ->addIndexColumn()
+                ->setRowId(function ($data) {
+                    return "row_" . $data->id;
+                })
+                ->editColumn('created_at', function ($data) {
+                    return $data->created_at;
+                })
+                ->editColumn('task_priority', function ($data) {
+                    return optional($data->getPriority)->name ?? null;
+                })
+                ->editColumn('status', function ($data) {
+                    return optional($data->getStatus)->name ?? null;
+                })
+                ->editColumn('entity', function ($data) {
+                    return optional($data->getEntity)->name ?? null;
+                })
+                ->addColumn('action', function ($data) {
+                    $html = "<div class='action-detail'>
+                <a href=" . route('tasks.subtask', $data->id) . " data-id=" . $data->id . " id='btnedit'  class='btn btn-sm btn-primary'>
+                                       <i class='fa fa-file-text'></i>
+                                       </a>
+                <a href=" . route('tasks.edit', $data->id) . " data-id=" . $data->id . " id='btnedit'  class='btn btn-primary'>
+                <i class='fa fa-pencil'></i></a>
+                <a data-form='" . route('tasks.destroy', encrypt($data->id)) . "' data-id ='" . $data->id . "' class='btn btn-remove'>
+                <i class='fa fa-trash'></i>
+                </a>
+
+             </div>";
+                    return $html;
+                })
+                ->rawColumns(['action'])
+                ->make(true);
+        }
+        return view('task_management.index')->with($data);
+    }
+
+
+
